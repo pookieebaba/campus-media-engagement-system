@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Nunito:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-background: #FDFCF8;
+  --color-foreground: #2C2C24;
+  --color-moss: #5D7052;
+  --color-moss-light: #7A9068;
+  --color-moss-dark: #4A5A40;
+  --color-terracotta: #C18C5D;
+  --color-terracotta-light: #D4A87A;
+  --color-terracotta-dark: #A87545;
+  --color-sand: #E6DCCD;
+  --color-stone: #F0EBE5;
+  --color-border: #DED8CF;
+  --color-destructive: #A85448;
+  --color-destructive-light: #C4675A;
+  --color-destructive-dark: #8A3F35;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background-color: #FDFCF8;
+  color: #2C2C24;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Fraunces', serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Focus indicators */
+:focus-visible {
+  outline: 2px solid #5D7052;
+  outline-offset: 2px;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F0EBE5;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #DED8CF;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #5D7052;
+}
