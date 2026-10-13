@@ -1,5 +1,9 @@
 import axios from 'axios';
 
+/**
+ * In development:  VITE_API_URL is unset → baseURL = '/api' → proxied by Vite to localhost:5000
+ * In production:   VITE_API_URL = 'https://cmes-server.onrender.com/api' → direct HTTPS call
+ */
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
   withCredentials: true,
@@ -8,12 +12,11 @@ const api = axios.create({
   },
 });
 
-// Response interceptor: on 401, redirect to login
+// On 401, redirect to login (skip if already on login page)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Avoid redirect loop on login page itself
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }

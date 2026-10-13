@@ -1,15 +1,20 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   server: {
     port: 5173,
     proxy: {
+      // Dev only: proxy /api to local backend
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
       },
     },
   },
-});
+  build: {
+    // Silence chunk size warning — acceptable for this app
+    chunkSizeWarningLimit: 1000,
+  },
+}));

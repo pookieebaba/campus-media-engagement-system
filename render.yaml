@@ -1,0 +1,44 @@
+services:
+  # ── Backend: Express API ────────────────────────────────────────────────────
+  - type: web
+    name: cmes-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGO_URI
+        sync: false          # Set manually in Render dashboard
+      - key: JWT_SECRET
+        generateValue: true  # Render auto-generates a secure random value
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: CLIENT_URL
+        sync: false          # Set to your Render frontend URL after deploying
+      - key: SMTP_HOST
+        sync: false          # Optional — for real email in production
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+
+  # ── Frontend: React/Vite Static Site ───────────────────────────────────────
+  - type: web
+    name: cmes-client
+    runtime: static
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false          # Set to https://cmes-server.onrender.com/api after backend deploys
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html  # SPA fallback for React Router

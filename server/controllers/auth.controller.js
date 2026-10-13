@@ -1,13 +1,15 @@
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 const User = require('../models/User');
 const { logAudit } = require('../utils/audit');
+const { sendMail } = require('../utils/mailer');
+
+const isProd = process.env.NODE_ENV === 'production';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax',
+  secure: isProd,           // HTTPS only in production
+  sameSite: isProd ? 'none' : 'lax',  // 'none' required for cross-origin on Render
   maxAge: 24 * 60 * 60 * 1000, // 24 hours
 };
 
@@ -66,8 +68,8 @@ const login = async (req, res, next) => {
 const logout = (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
   });
   return res.status(200).json({ message: 'Logged out successfully.' });
 };
@@ -115,31 +117,30 @@ const forgotPassword = async (req, res, next) => {
 
       const resetURL = `${process.env.CLIENT_URL || 'http://localhost:5173'}/reset-password/${rawToken}`;
 
-      // Send email (falls back to console log in dev if SMTP not configured)
       try {
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: parseInt(process.env.SMTP_PORT || '587', 10),
-          auth: {
-            user: process.env.SMTP_USER,
-            pass: process.env.SMTP_PASS,
-          },
-        });
-
-        await transporter.sendMail({
-          from: process.env.SMTP_USER || 'noreply@cmes.edu',
+        await sendMail({
           to: user.email,
           subject: 'CMES — Password Reset Request',
-          html: `<p>You requested a password reset. Click the link below to reset your password:</p>
-                 <p><a href="${resetURL}">${resetURL}</a></p>
-                 <p>This link expires in 1 hour.</p>
-                 <p>If you did not request this, please ignore this email.</p>`,
+          html: `
+            <div style="font-family:sans-serif;max-width:480px;margin:auto">
+              <h2 style="color:#5D7052">Password Reset Request</h2>
+              <p>You requested a password reset for your CMES account.</p>
+              <p>Click the button below to reset your password. This link expires in <strong>1 hour</strong>.</p>
+              <p style="margin:24px 0">
+                <a href="${resetURL}"
+                   style="background:#5D7052;color:#fff;padding:12px 24px;border-radius:999px;text-decoration:none;font-weight:600">
+                  Reset Password
+                </a>
+              </p>
+              <p style="color:#888;font-size:12px">If you did not request this, you can safely ignore this email.</p>
+              <hr style="border:none;border-top:1px solid #DED8CF"/>
+              <p style="color:#888;font-size:12px">Campus Media Engagement System</p>
+            </div>`,
         });
       } catch (emailErr) {
-        // In development, log the reset URL to console
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('[dev] Password reset URL:', resetURL);
-        }
+        // Log reset URL to console as fallback — token is still valid
+        console.log('[mailer] Failed to send email. Reset URL:', resetURL);
+        console.error('[mailer] Error:', emailErr.message);
       }
     }
 

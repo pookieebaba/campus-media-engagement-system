@@ -1,7 +1,6 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const User = require('../models/User');
 const Block = require('../models/Block');
@@ -11,11 +10,9 @@ const Attendance = require('../models/Attendance');
 const Notification = require('../models/Notification');
 const AuditLog = require('../models/AuditLog');
 
-const SALT_ROUNDS = 12;
-
-async function hashPassword(plain) {
-  return bcrypt.hash(plain, SALT_ROUNDS);
-}
+// NOTE: Do NOT pre-hash passwords here.
+// The User model's pre-save hook hashes them automatically.
+// Pre-hashing would result in a double-hash that never matches.
 
 async function seed() {
   console.log('🌱 Starting seed...');
@@ -38,11 +35,10 @@ async function seed() {
 
   // ── 1. Head user ──────────────────────────────────────────────────────────
   console.log('👤 Creating Head user...');
-  const headPassword = await hashPassword('Head@2024!');
   const head = await User.create({
-    name: 'Head Administrator',
+    name: 'Ramesh Chandra',
     email: 'head@cmes.edu',
-    password: headPassword,
+    password: 'Head@2024!',
     role: 'head',
     isActive: true,
   });
@@ -67,24 +63,26 @@ async function seed() {
 
   // ── 3. Faculty users (one per block) ─────────────────────────────────────
   console.log('🎓 Creating faculty users...');
-  const facultyPassword = await hashPassword('Faculty@2024!');
   const facultyDefs = [
-    { name: 'Dr. Alice Morgan', email: 'faculty.et@cmes.edu', blockCode: 'ET' },
-    { name: 'Prof. Brian Kwame', email: 'faculty.mt@cmes.edu', blockCode: 'MT' },
-    { name: 'Ms. Clara Reyes', email: 'faculty.fd@cmes.edu', blockCode: 'FD' },
-    { name: 'Dr. David Osei', email: 'faculty.pharmacy@cmes.edu', blockCode: 'PHARMACY' },
+    { name: 'Dr. Rajesh Kumar', email: 'faculty.et@cmes.edu', blockCode: 'ET' },
+    { name: 'Prof. Sunita Sharma', email: 'faculty.mt@cmes.edu', blockCode: 'MT' },
+    { name: 'Ms. Preethi Nair', email: 'faculty.fd@cmes.edu', blockCode: 'FD' },
+    { name: 'Dr. Amit Patel', email: 'faculty.pharmacy@cmes.edu', blockCode: 'PHARMACY' },
   ];
 
-  const facultyUsers = await User.insertMany(
-    facultyDefs.map((f) => ({
+  // Use create() one-by-one so the pre-save hook hashes each password
+  const facultyUsers = [];
+  for (const f of facultyDefs) {
+    const faculty = await User.create({
       name: f.name,
       email: f.email,
-      password: facultyPassword,
+      password: 'Faculty@2024!',
       role: 'faculty',
       block: blockMap[f.blockCode]._id,
       isActive: true,
-    }))
-  );
+    });
+    facultyUsers.push(faculty);
+  }
 
   const facultyMap = {};
   facultyDefs.forEach((def, i) => (facultyMap[def.blockCode] = facultyUsers[i]));
@@ -92,17 +90,20 @@ async function seed() {
 
   // ── 4. Students (5 per block = 20 total) ─────────────────────────────────
   console.log('🧑‍🎓 Creating student users...');
-  const studentPassword = await hashPassword('Student@2024!');
 
   const studentNames = [
-    ['Aisha Patel', 'Rohan Verma', 'Simone Lee', 'Carlos Diaz', 'Emma Okafor'],
-    ['Yusuf Hassan', 'Mia Johansson', 'Liam Chen', 'Fatima Al-Amin', 'Noah Mensah'],
-    ['Zara Williams', 'Oscar Fernandez', 'Nadia Kowalski', 'Arjun Singh', 'Lily Thompson'],
-    ['Kwame Asante', 'Priya Nair', 'Felix Weber', 'Amara Diallo', 'Jake Nguyen'],
+    // ET block
+    ['Aarav Sharma', 'Priya Patel', 'Rohit Verma', 'Ananya Singh', 'Karan Mehta'],
+    // MT block
+    ['Sneha Iyer', 'Vikram Nair', 'Pooja Reddy', 'Arjun Gupta', 'Divya Joshi'],
+    // FD block
+    ['Ishaan Chopra', 'Meera Pillai', 'Rahul Desai', 'Kavya Menon', 'Aditya Rao'],
+    // PHARMACY block
+    ['Nisha Bhat', 'Suresh Kumar', 'Deepika Mishra', 'Nikhil Tiwari', 'Swati Pandey'],
   ];
 
   const blockCodes = ['ET', 'MT', 'FD', 'PHARMACY'];
-  const allStudents = [];
+  const students = [];
 
   for (let bi = 0; bi < blockCodes.length; bi++) {
     const code = blockCodes[bi];
@@ -114,20 +115,20 @@ async function seed() {
       const num = String(si + 1).padStart(3, '0');
       const studentId = `${code}2024${num}`;
       const email = `${studentId}@student.cmes.edu`;
-      allStudents.push({
+      // Use create() so the pre-save hook hashes the password
+      const student = await User.create({
         name: names[si],
         email,
-        password: studentPassword,
+        password: 'Student@2024!',
         role: 'student',
         studentId,
         block: block._id,
         supervisor: supervisor._id,
         isActive: true,
       });
+      students.push(student);
     }
   }
-
-  const students = await User.insertMany(allStudents);
   console.log(`✓ ${students.length} student users created`);
 
   // ── 5. Events ──────────────────────────────────────────────────────────────

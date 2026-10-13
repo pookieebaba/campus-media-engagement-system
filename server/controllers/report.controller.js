@@ -48,7 +48,7 @@ const attendanceReport = async (req, res, next) => {
         },
       },
       {
-        $unwind: { path: '$blockData', preserveNullAndEmpty: true },
+        $unwind: { path: '$blockData', preserveNullAndEmptyArrays: true },
       },
       {
         $lookup: {
@@ -63,7 +63,10 @@ const attendanceReport = async (req, res, next) => {
 
     // Filter by block if provided
     if (blockId) {
-      pipeline.push({ $match: { 'studentData.block': require('mongoose').Types.ObjectId.createFromHexString ? undefined : blockId } });
+      const { Types } = require('mongoose');
+      if (Types.ObjectId.isValid(blockId)) {
+        pipeline.push({ $match: { 'studentData.block': new Types.ObjectId(blockId) } });
+      }
     }
 
     // Filter by date range on event
@@ -142,7 +145,7 @@ const participationReport = async (req, res, next) => {
         },
       },
       {
-        $unwind: { path: '$blockData', preserveNullAndEmpty: true },
+        $unwind: { path: '$blockData', preserveNullAndEmptyArrays: true },
       },
       {
         $lookup: {
@@ -154,6 +157,13 @@ const participationReport = async (req, res, next) => {
       },
       { $unwind: '$eventData' },
     ];
+
+    if (blockId) {
+      const { Types } = require('mongoose');
+      if (Types.ObjectId.isValid(blockId)) {
+        pipeline.push({ $match: { 'studentData.block': new Types.ObjectId(blockId) } });
+      }
+    }
 
     if (dateFrom || dateTo) {
       const dateFilter = {};
