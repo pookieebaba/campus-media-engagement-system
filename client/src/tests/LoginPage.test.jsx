@@ -39,6 +39,15 @@ function renderLoginPage() {
   );
 }
 
+/**
+ * Gets the password <input> specifically by its id, avoiding ambiguity
+ * with the "Show password" aria-label and "Forgot your password?" link
+ * that also match /password/i.
+ */
+function getPasswordInput() {
+  return document.getElementById('password');
+}
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 describe('LoginPage', () => {
   beforeEach(() => {
@@ -50,7 +59,8 @@ describe('LoginPage', () => {
 
     expect(screen.getByRole('heading', { name: /campus media engagement/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    // Use #password id to avoid matching the eye-button aria-label or the link
+    expect(document.getElementById('password')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /forgot your password/i })).toBeInTheDocument();
   });
@@ -76,7 +86,7 @@ describe('LoginPage', () => {
     renderLoginPage();
 
     await user.type(screen.getByLabelText(/email address/i), 'wrong@cmes.edu');
-    await user.type(screen.getByLabelText(/password/i), 'WrongPass1');
+    await user.type(getPasswordInput(), 'WrongPass1');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/invalid credentials/i);
@@ -90,7 +100,7 @@ describe('LoginPage', () => {
     renderLoginPage();
 
     await user.type(screen.getByLabelText(/email address/i), 'head@cmes.edu');
-    await user.type(screen.getByLabelText(/password/i), 'Head@2024!');
+    await user.type(getPasswordInput(), 'Head@2024!');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
@@ -105,7 +115,7 @@ describe('LoginPage', () => {
     renderLoginPage();
 
     await user.type(screen.getByLabelText(/email address/i), 'faculty.et@cmes.edu');
-    await user.type(screen.getByLabelText(/password/i), 'Faculty@2024!');
+    await user.type(getPasswordInput(), 'Faculty@2024!');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
@@ -120,7 +130,7 @@ describe('LoginPage', () => {
     renderLoginPage();
 
     await user.type(screen.getByLabelText(/email address/i), 'ET2024001@student.cmes.edu');
-    await user.type(screen.getByLabelText(/password/i), 'Student@2024!');
+    await user.type(getPasswordInput(), 'Student@2024!');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => {
@@ -132,16 +142,16 @@ describe('LoginPage', () => {
     const user = userEvent.setup();
     renderLoginPage();
 
-    const passwordInput = screen.getByLabelText(/^password$/i);
+    const passwordInput = getPasswordInput();
     expect(passwordInput).toHaveAttribute('type', 'password');
 
     const toggleBtn = screen.getByRole('button', { name: /show password/i });
     await user.click(toggleBtn);
 
-    expect(passwordInput).toHaveAttribute('type', 'text');
+    expect(getPasswordInput()).toHaveAttribute('type', 'text');
 
     await user.click(screen.getByRole('button', { name: /hide password/i }));
-    expect(passwordInput).toHaveAttribute('type', 'password');
+    expect(getPasswordInput()).toHaveAttribute('type', 'password');
   });
 
   it('shows a generic error when login throws without response data', async () => {
@@ -151,7 +161,7 @@ describe('LoginPage', () => {
     renderLoginPage();
 
     await user.type(screen.getByLabelText(/email address/i), 'head@cmes.edu');
-    await user.type(screen.getByLabelText(/password/i), 'Head@2024!');
+    await user.type(getPasswordInput(), 'Head@2024!');
     await user.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/invalid credentials. please try again/i);
