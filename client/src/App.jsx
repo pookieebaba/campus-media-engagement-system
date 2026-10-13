@@ -1,11 +1,11 @@
-import React, { lazy, Suspense } from 'react';
+import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { ToastProvider } from './components/ui/Toast.jsx';
 import { ProtectedRoute } from './components/layout/ProtectedRoute.jsx';
 import { LoadingSpinner } from './components/ui/LoadingSpinner.jsx';
 
-// ─── Auth pages (small, not lazy-loaded) ───────────────────────────────────
+// ─── Auth pages ─────────────────────────────────────────────────────────────
 import { LoginPage } from './pages/auth/LoginPage.jsx';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage.jsx';
 import { ResetPasswordPage } from './pages/auth/ResetPasswordPage.jsx';
@@ -28,11 +28,25 @@ import { NotificationsPage } from './pages/head/NotificationsPage.jsx';
 import { AuditLogsPage } from './pages/head/AuditLogsPage.jsx';
 import { SettingsPage } from './pages/head/SettingsPage.jsx';
 
-// ─── Faculty pages ──────────────────────────────────────────────────────────
+// ─── Faculty pages ───────────────────────────────────────────────────────────
 import { FacultyDashboardPage } from './pages/faculty/FacultyDashboardPage.jsx';
+import { FacultyEventsPage } from './pages/faculty/FacultyEventsPage.jsx';
+import { FacultyEventDetailPage } from './pages/faculty/FacultyEventDetailPage.jsx';
+import { AttendanceRegisterPage } from './pages/faculty/AttendanceRegisterPage.jsx';
+import { QRAttendancePage } from './pages/faculty/QRAttendancePage.jsx';
+import { FacultyStudentsPage } from './pages/faculty/FacultyStudentsPage.jsx';
+import { AnnouncementsPage } from './pages/faculty/AnnouncementsPage.jsx';
+import { FacultyNotificationsPage } from './pages/faculty/FacultyNotificationsPage.jsx';
 
-// ─── Student pages ──────────────────────────────────────────────────────────
+// ─── Student pages ───────────────────────────────────────────────────────────
 import { StudentDashboardPage } from './pages/student/StudentDashboardPage.jsx';
+import { StudentEventsPage } from './pages/student/StudentEventsPage.jsx';
+import { StudentEventDetailPage } from './pages/student/StudentEventDetailPage.jsx';
+import { QRCheckInPage } from './pages/student/QRCheckInPage.jsx';
+import { MyParticipationPage } from './pages/student/MyParticipationPage.jsx';
+import { AttendanceHistoryPage } from './pages/student/AttendanceHistoryPage.jsx';
+import { StudentNotificationsPage } from './pages/student/StudentNotificationsPage.jsx';
+import { StudentProfilePage } from './pages/student/StudentProfilePage.jsx';
 
 // ─── Role-based root redirect ────────────────────────────────────────────────
 function RootRedirect() {
@@ -45,15 +59,6 @@ function RootRedirect() {
     student: '/student/dashboard',
   };
   return <Navigate to={dashboards[user?.role] ?? '/login'} replace />;
-}
-
-// ─── Placeholder for pages coming in later FEATs ─────────────────────────────
-function Placeholder({ label }) {
-  return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <p className="font-body text-foreground/40 text-sm">{label} — coming soon</p>
-    </div>
-  );
 }
 
 export function App() {
@@ -213,15 +218,7 @@ export function App() {
               path="/faculty/events"
               element={
                 <ProtectedRoute allowedRoles={['faculty']}>
-                  <Placeholder label="Faculty Events" />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/faculty/events/:id"
-              element={
-                <ProtectedRoute allowedRoles={['faculty']}>
-                  <Placeholder label="Faculty Event Detail" />
+                  <FacultyEventsPage />
                 </ProtectedRoute>
               }
             />
@@ -229,7 +226,7 @@ export function App() {
               path="/faculty/events/:id/attendance"
               element={
                 <ProtectedRoute allowedRoles={['faculty']}>
-                  <Placeholder label="Manage Attendance" />
+                  <AttendanceRegisterPage />
                 </ProtectedRoute>
               }
             />
@@ -237,7 +234,15 @@ export function App() {
               path="/faculty/events/:id/qr"
               element={
                 <ProtectedRoute allowedRoles={['faculty']}>
-                  <Placeholder label="QR Code" />
+                  <QRAttendancePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/faculty/events/:id"
+              element={
+                <ProtectedRoute allowedRoles={['faculty']}>
+                  <FacultyEventDetailPage />
                 </ProtectedRoute>
               }
             />
@@ -245,7 +250,7 @@ export function App() {
               path="/faculty/students"
               element={
                 <ProtectedRoute allowedRoles={['faculty']}>
-                  <Placeholder label="My Students" />
+                  <FacultyStudentsPage />
                 </ProtectedRoute>
               }
             />
@@ -253,7 +258,7 @@ export function App() {
               path="/faculty/announcements"
               element={
                 <ProtectedRoute allowedRoles={['faculty']}>
-                  <Placeholder label="Announcements" />
+                  <AnnouncementsPage />
                 </ProtectedRoute>
               }
             />
@@ -261,7 +266,7 @@ export function App() {
               path="/faculty/notifications"
               element={
                 <ProtectedRoute allowedRoles={['faculty']}>
-                  <Placeholder label="Faculty Notifications" />
+                  <FacultyNotificationsPage />
                 </ProtectedRoute>
               }
             />
@@ -279,7 +284,15 @@ export function App() {
               path="/student/events"
               element={
                 <ProtectedRoute allowedRoles={['student']}>
-                  <Placeholder label="Student Events" />
+                  <StudentEventsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/student/events/:id/checkin"
+              element={
+                <ProtectedRoute allowedRoles={['student']}>
+                  <QRCheckInPage />
                 </ProtectedRoute>
               }
             />
@@ -287,7 +300,7 @@ export function App() {
               path="/student/events/:id"
               element={
                 <ProtectedRoute allowedRoles={['student']}>
-                  <Placeholder label="Event Detail" />
+                  <StudentEventDetailPage />
                 </ProtectedRoute>
               }
             />
@@ -295,7 +308,7 @@ export function App() {
               path="/student/participation"
               element={
                 <ProtectedRoute allowedRoles={['student']}>
-                  <Placeholder label="My Participation" />
+                  <MyParticipationPage />
                 </ProtectedRoute>
               }
             />
@@ -303,7 +316,7 @@ export function App() {
               path="/student/attendance"
               element={
                 <ProtectedRoute allowedRoles={['student']}>
-                  <Placeholder label="Attendance History" />
+                  <AttendanceHistoryPage />
                 </ProtectedRoute>
               }
             />
@@ -311,7 +324,7 @@ export function App() {
               path="/student/notifications"
               element={
                 <ProtectedRoute allowedRoles={['student']}>
-                  <Placeholder label="Student Notifications" />
+                  <StudentNotificationsPage />
                 </ProtectedRoute>
               }
             />
@@ -319,7 +332,7 @@ export function App() {
               path="/student/profile"
               element={
                 <ProtectedRoute allowedRoles={['student']}>
-                  <Placeholder label="Profile" />
+                  <StudentProfilePage />
                 </ProtectedRoute>
               }
             />

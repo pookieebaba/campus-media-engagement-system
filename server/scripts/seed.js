@@ -266,63 +266,278 @@ async function seed() {
     correctionHistory: [],
   }));
 
-  await Attendance.insertMany(attendanceRecords);
-  console.log(`✓ ${attendanceRecords.length} attendance records created`);
+  const insertedAttendance = await Attendance.insertMany(attendanceRecords);
+  console.log(`✓ ${insertedAttendance.length} attendance records created`);
 
-  // ── 8. Notifications ──────────────────────────────────────────────────────
+  // ── 8. Notifications (5 per user = 125 total) ────────────────────────────
   console.log('🔔 Creating notifications...');
 
-  const sampleStudents = students.slice(0, 5);
-  const notifications = [
+  const allNotifications = [];
+
+  // Student notifications (5 per student × 20 students)
+  students.forEach((student) => {
+    const evRef = student.studentId.startsWith('FD') || student.studentId.startsWith('PHARMACY')
+      ? event2._id
+      : event1._id;
+    const supervisorId = student.supervisor;
+
+    allNotifications.push(
+      {
+        recipient: student._id,
+        sender: head._id,
+        type: 'event_published',
+        title: 'You\'ve been assigned to an event',
+        message: `You have been assigned to participate in an upcoming campus media event. Please check your events page for details.`,
+        isRead: false,
+        relatedEvent: evRef,
+      },
+      {
+        recipient: student._id,
+        sender: supervisorId,
+        type: 'rsvp_reminder',
+        title: 'RSVP Deadline Approaching',
+        message: 'Please submit your RSVP for your upcoming event. The deadline is approaching in 2 days.',
+        isRead: false,
+        relatedEvent: evRef,
+      },
+      {
+        recipient: student._id,
+        sender: supervisorId,
+        type: 'announcement',
+        title: 'Important Announcement from Your Supervisor',
+        message: 'Please ensure you have completed all pre-event preparations. Attendance is mandatory for all assigned students.',
+        isRead: true,
+        relatedEvent: evRef,
+      },
+      {
+        recipient: student._id,
+        sender: supervisorId,
+        type: 'attendance_correction',
+        title: 'Attendance Record Updated',
+        message: 'Your attendance record has been reviewed and updated by your faculty supervisor. Please contact them if you have any questions.',
+        isRead: false,
+        relatedEvent: evRef,
+      },
+      {
+        recipient: student._id,
+        sender: head._id,
+        type: 'system',
+        title: 'Welcome to CMES',
+        message: 'Welcome to the Campus Media Engagement System! Use this platform to manage your event RSVPs and check-ins.',
+        isRead: true,
+      }
+    );
+  });
+
+  // Faculty notifications (5 per faculty × 4 faculty)
+  facultyUsers.forEach((faculty, idx) => {
+    const evRef = idx < 2 ? event1._id : event2._id;
+    allNotifications.push(
+      {
+        recipient: faculty._id,
+        sender: head._id,
+        type: 'assignment',
+        title: 'Supervisor Assignment',
+        message: 'You have been assigned as a supervisor for an upcoming campus media event. Please review the event details.',
+        isRead: true,
+        relatedEvent: evRef,
+      },
+      {
+        recipient: faculty._id,
+        sender: head._id,
+        type: 'rsvp_submitted',
+        title: 'Student RSVP Update',
+        message: 'Several students have submitted their RSVPs for your supervised event. Please review the participant list.',
+        isRead: false,
+        relatedEvent: evRef,
+      },
+      {
+        recipient: faculty._id,
+        sender: head._id,
+        type: 'attendance_finalized',
+        title: 'Reminder: Finalize Attendance',
+        message: 'Please remember to finalize attendance records for completed events under your supervision.',
+        isRead: false,
+        relatedEvent: evRef,
+      },
+      {
+        recipient: faculty._id,
+        sender: head._id,
+        type: 'event_cancelled',
+        title: 'Event Update',
+        message: 'An event you were assigned to supervise has been updated. Please check the events page for the latest information.',
+        isRead: true,
+        relatedEvent: evRef,
+      },
+      {
+        recipient: faculty._id,
+        sender: head._id,
+        type: 'system',
+        title: 'Welcome to CMES',
+        message: 'Welcome to the Campus Media Engagement System! Use the faculty dashboard to manage your supervised events and student attendance.',
+        isRead: true,
+      }
+    );
+  });
+
+  // Head notifications (5)
+  allNotifications.push(
     {
-      recipient: sampleStudents[0]._id,
+      recipient: head._id,
       sender: head._id,
       type: 'event_published',
-      title: 'New Event: Photography Workshop',
-      message: 'You have been assigned to the Photography Workshop on ' + upcomingDate.toDateString() + '.',
+      title: 'Event Published: Photography Workshop',
+      message: 'The Photography Workshop has been published and is now visible to assigned students.',
       isRead: false,
       relatedEvent: event2._id,
     },
     {
-      recipient: sampleStudents[1]._id,
-      sender: facultyMap['ET']._id,
-      type: 'announcement',
-      title: 'Attendance Reminder',
-      message: 'Please remember to check in at the Annual Media Showcase. Your attendance has been recorded.',
+      recipient: head._id,
+      sender: head._id,
+      type: 'rsvp_summary',
+      title: 'Photography Workshop RSVP Summary',
+      message: 'Photography Workshop RSVP summary: 4 going, 2 not going, 4 pending.',
+      isRead: false,
+      relatedEvent: event2._id,
+    },
+    {
+      recipient: head._id,
+      sender: head._id,
+      type: 'attendance_exception',
+      title: 'Attendance Exception Alert',
+      message: '3 students were marked absent without an excuse at the Annual Media Showcase. Please review.',
       isRead: true,
       relatedEvent: event1._id,
     },
     {
-      recipient: sampleStudents[2]._id,
+      recipient: head._id,
       sender: head._id,
-      type: 'rsvp_reminder',
-      title: 'RSVP Deadline Approaching',
-      message: 'The RSVP deadline for Photography Workshop is in 2 days. Please respond.',
-      isRead: false,
-      relatedEvent: event2._id,
-    },
-    {
-      recipient: facultyMap['ET']._id,
-      sender: head._id,
-      type: 'assignment',
-      title: 'Supervisor Assignment',
-      message: 'You have been assigned as a supervisor for the Annual Media Showcase.',
+      type: 'user_created',
+      title: 'New Users Added',
+      message: 'Successfully added 20 student accounts and 4 faculty accounts to the system.',
       isRead: true,
-      relatedEvent: event1._id,
     },
     {
-      recipient: sampleStudents[3]._id,
-      sender: facultyMap['FD']._id,
-      type: 'attendance_correction',
-      title: 'Attendance Updated',
-      message: 'Your attendance for Photography Workshop has been updated. Please contact your supervisor if you have questions.',
+      recipient: head._id,
+      sender: head._id,
+      type: 'system',
+      title: 'Seed Complete',
+      message: 'The Campus Media Engagement System has been seeded with test data. Review the defaults in this notification.',
       isRead: false,
-      relatedEvent: event2._id,
+    }
+  );
+
+  await Notification.insertMany(allNotifications);
+  console.log(`✓ ${allNotifications.length} notifications created`);
+
+  // ── 9. AuditLog entries ───────────────────────────────────────────────────
+  console.log('📝 Creating audit log entries...');
+
+  const auditLogs = [
+    {
+      actor: head._id,
+      action: 'user_create',
+      targetType: 'User',
+      targetId: facultyUsers[0]._id,
+      changes: {
+        before: null,
+        after: { name: facultyUsers[0].name, email: facultyUsers[0].email, role: 'faculty' },
+      },
+    },
+    {
+      actor: head._id,
+      action: 'user_create',
+      targetType: 'User',
+      targetId: facultyUsers[1]._id,
+      changes: {
+        before: null,
+        after: { name: facultyUsers[1].name, email: facultyUsers[1].email, role: 'faculty' },
+      },
+    },
+    {
+      actor: head._id,
+      action: 'event_publish',
+      targetType: 'Event',
+      targetId: event2._id,
+      changes: {
+        before: { status: 'draft' },
+        after: { status: 'published' },
+      },
+    },
+    {
+      actor: facultyMap['ET']._id,
+      action: 'attendance_correct',
+      targetType: 'Attendance',
+      targetId: insertedAttendance[0]?._id ?? event1._id,
+      changes: {
+        before: { status: 'absent' },
+        after: { status: 'present', reason: 'Student was present but QR failed to scan' },
+      },
+    },
+    {
+      actor: head._id,
+      action: 'event_cancel',
+      targetType: 'Event',
+      targetId: event3._id,
+      changes: {
+        before: { status: 'draft' },
+        after: { status: 'cancelled', cancelReason: 'Venue unavailable' },
+      },
+    },
+    {
+      actor: head._id,
+      action: 'user_deactivate',
+      targetType: 'User',
+      targetId: students[19]._id,
+      changes: {
+        before: { isActive: true },
+        after: { isActive: false },
+      },
+    },
+    {
+      actor: head._id,
+      action: 'bulk_import',
+      targetType: 'User',
+      targetId: null,
+      changes: {
+        before: null,
+        after: { created: 5, failed: 0, role: 'student' },
+      },
+    },
+    {
+      actor: head._id,
+      action: 'block_create',
+      targetType: 'Block',
+      targetId: blockMap['ET']._id,
+      changes: {
+        before: null,
+        after: { name: 'Engineering & Technology', code: 'ET' },
+      },
+    },
+    {
+      actor: head._id,
+      action: 'user_update',
+      targetType: 'User',
+      targetId: facultyUsers[2]._id,
+      changes: {
+        before: { name: 'Ms. Clara Reyes' },
+        after: { name: 'Dr. Clara Reyes' },
+      },
+    },
+    {
+      actor: facultyMap['FD']._id,
+      action: 'attendance_correct',
+      targetType: 'Attendance',
+      targetId: event2._id,
+      changes: {
+        before: { status: 'absent' },
+        after: { status: 'excused', reason: 'Student provided medical certificate' },
+      },
     },
   ];
 
-  await Notification.insertMany(notifications);
-  console.log(`✓ ${notifications.length} notifications created`);
+  await AuditLog.insertMany(auditLogs);
+  console.log(`✓ ${auditLogs.length} audit log entries created`);
 
   // ── Done ─────────────────────────────────────────────────────────────────
   console.log('\n✓ Seed complete\n');
@@ -330,6 +545,9 @@ async function seed() {
   console.log('  Head:    head@cmes.edu            / Head@2024!');
   console.log('  Faculty: faculty.et@cmes.edu       / Faculty@2024!');
   console.log('  Student: ET2024001@student.cmes.edu / Student@2024!');
+  console.log('');
+  console.log(`  Notifications: ${allNotifications.length}`);
+  console.log(`  Audit logs:    ${auditLogs.length}`);
   console.log('');
 
   await mongoose.disconnect();
