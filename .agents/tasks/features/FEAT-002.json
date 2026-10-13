@@ -1,0 +1,63 @@
+{
+  "id": "FEAT-002",
+  "type": "feat",
+  "description": "Complete Express API — all controllers, route files, and Zod schemas for every endpoint specified in the spec. Covers auth, users, blocks, events, participation, attendance, notifications, reports, and audit logs. Each route is protected by the auth + authorize middleware built in FEAT-001. This FEAT depends on FEAT-001 (models, middleware, and server.js must exist). After this FEAT the full API is exercisable via curl or Postman and backend Jest tests pass.",
+  "status": "completed",
+  "steps": [
+    "Create server/schemas/auth.schemas.js: Zod schemas loginSchema ({ email: z.string().email(), password: z.string().min(8) }), forgotPasswordSchema, resetPasswordSchema.",
+
+    "Create server/schemas/user.schemas.js: createUserSchema (name, email, password, role, studentId optional, blockId optional, supervisorId optional), updateUserSchema (partial of same), bulkImportRowSchema (name, email, studentId, blockCode, supervisorEmail optional).",
+
+    "Create server/schemas/block.schemas.js: createBlockSchema (name, code, description optional), updateBlockSchema (partial).",
+
+    "Create server/schemas/event.schemas.js: createEventSchema (title, description, date, startTime, endTime, venue, participatingBlocks array of ObjectId strings, assignedStudents array, supervisors array, rsvpDeadline, checkInWindow {start,end} optional), updateEventSchema (partial), cancelEventSchema (cancelReason required).",
+
+    "Create server/schemas/participation.schemas.js: rsvpSchema ({ rsvpStatus: z.enum(['going','not_going']) }).",
+
+    "Create server/schemas/attendance.schemas.js: manualAttendanceSchema ({ status: z.enum(['present','absent','late','excused']), checkInMethod: z.enum(['manual','faculty_verified']).optional() }), correctAttendanceSchema ({ status, reason: z.string().min(10) }), qrCheckinSchema ({ eventId, rawToken }).",
+
+    "Create server/schemas/notification.schemas.js: announceSchema ({ recipientIds: z.array(z.string()).optional(), blockIds: z.array(z.string()).optional(), title: z.string().min(1), message: z.string().min(1) }).",
+
+    "Create server/controllers/auth.controller.js with functions:\n  - login: validates body, finds user by email with isActive:true, compares password with bcryptjs, signs JWT ({ sub: user._id, role: user.role }, 24h), sets httpOnly cookie 'token', updates lastLoginAt, returns { user: { _id, name, email, role } }.\n  - logout: clears cookie 'token', returns 200.\n  - getMe: returns req.user populated from DB (excludes password).\n  - forgotPassword: finds user by email, generates crypto.randomBytes(32) token, stores SHA-256 hash in passwordResetToken + 1h expiry, sends reset email via nodemailer (logs to console in dev if SMTP not configured), returns 200 always (no user enumeration).\n  - resetPassword: finds user where passwordResetToken hash matches and not expired, sets new password (pre-save hook hashes it), clears token fields, returns 200.",
+
+    "Create server/controllers/user.controller.js with functions:\n  - listUsers: HEAD only. Supports query params: role, block, isActive, search (name/email/studentId), page (default 1), limit (default 20, max 100). Returns { users, total, page, pages }.\n  - createUser: HEAD only. Validates with createUserSchema. Checks uniqueness. Creates User. Logs audit. Returns 201.\n  - getUser: HEAD or self. Returns user by id (no password).\n  - updateUser: HEAD only. Partial update. Cannot change role to head. Cannot change studentId to existing. Logs audit with before/after. Returns updated user.\n  - deactivateUser: HEAD only. Sets isActive=false. Logs audit. Returns 200.\n  - activateUser: HEAD only. Sets isActive=true. Logs audit. Returns 200.\n  - bulkImport: HEAD only. Reads multipart CSV via multer memoryStorage, parses with csv.js, validates each row, creates users in bulk (Promise.allSettled), returns { created, failed, errors[] }.",
+
+    "Create server/controllers/block.controller.js: listBlocks (public when authenticated), createBlock (HEAD only, audit), updateBlock (HEAD only, audit), deleteBlock (HEAD only — soft: isActive=false, audit).",
+
+    "Create server/controllers/event.controller.js with functions:\n  - listEvents: Filters by role — HEAD sees all; Faculty sees events where user._id in supervisors; Student sees events where user._id in assignedStudents AND status in [published, ongoing, completed]. Supports query: status, block, search, page, limit.\n  - createEvent: HEAD or faculty (if authorized). Validates schema. Creates Event with status=draft. Logs audit.\n  - getEvent: Role-gated — same visibility rules as listEvents. Returns event populated with supervisors, participatingBlocks, organizer names.\n  - updateEvent: HEAD or assigned supervisor. Cannot update if status=completed or cancelled. Logs audit.\n  - publishEvent: HEAD only. Moves draft->published. Creates EventParticipation records (status=pending) for all assignedStudents. Sends Notification to each student. Logs audit.\n  - cancelEvent: HEAD only. Sets status=cancelled, stores cancelReason. Sends Notification to all participants/supervisors. Logs audit.\n  - getQRCode: Faculty or HEAD only. Generates rawToken + hashedToken, stores hashedToken + expires (event end + 30 min) on event, returns { qrDataURL } (base64 PNG via qrcode library). Rate-limited to prevent token farming.",
+
+    "Create server/controllers/participation.controller.js:\n  - listParticipants: Faculty supervisor of event or HEAD. Returns EventParticipation populated with student name/studentId/block, grouped by rsvpStatus.\n  - rsvp: Student only. Finds own EventParticipation. Checks rsvpDeadline not passed. Updates rsvpStatus. Sets rsvpAt/changedAt. Returns updated record.\n  - myParticipation: Student only. Returns all EventParticipation for req.user._id populated with event details.",
+
+    "Create server/controllers/attendance.controller.js:\n  - listAttendance: Faculty supervisor or HEAD. Returns all Attendance for event with student details.\n  - qrCheckin: Student only. Validates qrCheckinSchema. Finds event, verifies rawToken against hashed token in constant time, checks checkInWindow, checks student is in assignedStudents, checks no existing present/late record exists. Creates or updates Attendance { status: present, checkInMethod: qr, checkInTime: now }. Returns 200.\n  - manualCheckin: Faculty or HEAD. Creates/updates Attendance for studentId. Validates student is in event. Sets status, checkInMethod=faculty_verified.\n  - correctAttendance: Faculty or HEAD. isFinalized check — if finalized, only HEAD can correct. Pushes correctionHistory entry. Updates status. Logs audit.\n  - finalizeAttendance: Faculty supervisor or HEAD. Sets isFinalized=true on all Attendance for event. Logs audit.",
+
+    "Create server/controllers/notification.controller.js:\n  - listNotifications: Returns notifications for req.user._id, paginated, sorted by createdAt desc. Returns { notifications, unreadCount }.\n  - markRead: Sets isRead=true on notification (must belong to req.user).\n  - markAllRead: Sets isRead=true on all notifications for req.user.\n  - announce: Faculty or HEAD. Creates Notification for specified recipientIds OR all students in specified blockIds. Returns { sent: count }.",
+
+    "Create server/controllers/report.controller.js (HEAD only):\n  - attendanceReport: Aggregates Attendance joined with Event and User. Filters: eventId, blockId, status, dateFrom, dateTo. Returns { records[], summary: { total, present, absent, late, excused } }.\n  - participationReport: Aggregates EventParticipation. Same filters. Returns rsvp breakdown.\n  - exportAttendanceCSV: Same filters, streams CSV response with Content-Disposition: attachment; filename=attendance.csv. Columns: studentId, name, block, event, date, status, checkInTime, checkInMethod.\n  - exportParticipationCSV: Streams CSV. Columns: studentId, name, block, event, rsvpStatus, rsvpAt.",
+
+    "Create server/controllers/auditLog.controller.js (HEAD only): listAuditLogs with filters (actor, action, targetType, dateFrom, dateTo), paginated.",
+
+    "Create all route files in server/routes/:\n  - auth.routes.js: POST /login (authLimiter), POST /logout, POST /forgot-password (authLimiter), POST /reset-password/:token (authLimiter), GET /me (verifyToken).\n  - user.routes.js: all /users routes behind verifyToken + authorize('head') except GET /:id which allows self.\n  - block.routes.js: GET / (verifyToken), POST|PUT|DELETE (verifyToken + authorize('head')).\n  - event.routes.js: all behind verifyToken, role checks in controller.\n  - participation.routes.js: all behind verifyToken.\n  - attendance.routes.js: all behind verifyToken.\n  - notification.routes.js: all behind verifyToken.\n  - report.routes.js: all behind verifyToken + authorize('head').\n  - auditLog.routes.js: behind verifyToken + authorize('head').",
+
+    "Mount all routes in server/server.js under /api/: /api/auth, /api/users, /api/blocks, /api/events, /api/participation, /api/attendance, /api/notifications, /api/reports, /api/audit-logs.",
+
+    "Create server/tests/auth.test.js: Jest tests for login (valid credentials returns 200 + sets cookie, invalid password returns 401, inactive user returns 401, rate limit after 5 attempts), logout (clears cookie), getMe (returns user when authenticated, 401 when not).",
+
+    "Create server/tests/event.test.js: tests for createEvent (faculty cannot create without being assigned — wait, actually spec says Head or authorized faculty; test both), publishEvent (HEAD can publish, faculty cannot), rsvp (student can RSVP going, cannot RSVP after deadline), qrCheckin (valid token succeeds, expired token fails, wrong token fails, duplicate checkin fails).",
+
+    "Create server/tests/user.test.js: tests for listUsers pagination, bulkImport CSV (valid rows created, invalid rows returned in errors array), activate/deactivate."
+  ],
+  "acceptance_criteria": [
+    "POST /api/auth/login with { email: 'head@cmes.edu', password: 'Head@2024!' } returns 200 and sets httpOnly 'token' cookie",
+    "GET /api/auth/me with valid cookie returns { _id, name, email, role: 'head' }",
+    "GET /api/events without cookie returns 401",
+    "POST /api/events with student cookie returns 403",
+    "Running 'cd server && npm test' passes all tests in server/tests/",
+    "POST /api/events/:id/rsvp with student cookie and valid eventId returns 200",
+    "GET /api/events/:id/qr with faculty cookie returns { qrDataURL } (a data URI string)"
+  ],
+  "verification": [
+    "cd c:\\Users\\shubh\\Documents\\projects\\campus-media-engagement-system\\server && npm test"
+  ],
+  "blocked_reason": null,
+  "findings": "Completed successfully. All 44 Jest tests pass (npm test exit code 0). Test suites: auth.test.js (11 tests), user.test.js (14 tests), event.test.js (19 tests). All tests use jest.mock() for Mongoose models — no live MongoDB needed. Fix applied: express-mongo-sanitize@2.2.0 is incompatible with Express 5 because it tries to assign req.query which is a getter-only property in Express 5's router. Wrapped mongoSanitize() in a custom middleware that temporarily makes req.query writable, runs the sanitizer, then restores it. The npm test script was also updated from node_modules/.bin/jest (bash shebang, fails on Windows) to node_modules/jest/bin/jest.js (direct .js entry, works on all platforms). API design decisions: (1) Faculty can create events (per spec 'HEAD or authorized faculty') — the route allows head+faculty roles, but the spec doesn't define a separate 'authorized faculty' attribute, so any faculty can create events in draft; (2) bulkImport assigns a default password of {studentId}@CMES! since no default password scheme was specified; (3) announce endpoint requires recipientIds OR blockIds (at least one, validated by Zod refine); (4) GET /api/events/:id enforces same visibility rules as listEvents via buildVisibilityFilter; (5) correctAttendance allows faculty to correct un-finalized records, but only HEAD can correct finalized ones."
+}

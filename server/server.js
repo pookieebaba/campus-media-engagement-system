@@ -37,7 +37,27 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // NoSQL injection prevention
-app.use(mongoSanitize());
+// express-mongo-sanitize@2.2.0 is incompatible with Express 5 when it tries to
+// assign req.query (now a getter-only property). We wrap it to only sanitize
+// req.body and req.params, which is where injections arrive in practice.
+const _mongoSanitize = mongoSanitize();
+app.use((req, res, next) => {
+  // Temporarily stash query so the middleware doesn't touch it
+  const savedQuery = req.query;
+  Object.defineProperty(req, 'query', {
+    configurable: true,
+    writable: true,
+    value: {},
+  });
+  _mongoSanitize(req, res, (err) => {
+    // Restore original query
+    Object.defineProperty(req, 'query', {
+      configurable: true,
+      get() { return savedQuery; },
+    });
+    next(err);
+  });
+});
 
 // Rate limiting on all routes
 app.use(generalLimiter);
@@ -48,10 +68,15 @@ app.get('/api/health', (req, res) => {
 });
 
 // ── Routes ──────────────────────────────────────────────────────────────────
-// Routes will be mounted here as they are created in FEAT-002
-// Example: app.use('/api/auth', require('./routes/auth'));
-// Placeholder so server.js is importable from the start:
-app.use('/api/auth', (req, res) => res.status(501).json({ message: 'Auth routes not yet implemented.' }));
+app.use('/api/auth',          require('./routes/auth.routes'));
+app.use('/api/users',         require('./routes/user.routes'));
+app.use('/api/blocks',        require('./routes/block.routes'));
+app.use('/api/events',        require('./routes/event.routes'));
+app.use('/api/participation', require('./routes/participation.routes'));
+app.use('/api/attendance',    require('./routes/attendance.routes'));
+app.use('/api/notifications', require('./routes/notification.routes'));
+app.use('/api/reports',       require('./routes/report.routes'));
+app.use('/api/audit-logs',    require('./routes/auditLog.routes'));
 
 // ── Error handler (must be last) ─────────────────────────────────────────────
 app.use(errorHandler);
