@@ -1,4 +1,11 @@
-require('dotenv').config();
+// Load environment variables from .env when present (local dev).
+// On Render env vars are injected directly and there is no .env file, so this
+// is wrapped to never crash the boot if the file is missing or unreadable.
+try {
+  require('dotenv').config();
+} catch (_err) {
+  // No .env available — rely on host-injected environment variables.
+}
 
 const express = require('express');
 const helmet = require('helmet');

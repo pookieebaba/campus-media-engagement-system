@@ -17,7 +17,7 @@ function buildMatchStage({ eventId, blockId, status, dateFrom, dateTo } = {}) {
  */
 const attendanceReport = async (req, res, next) => {
   try {
-    const { eventId, blockId, status, dateFrom, dateTo } = req.query;
+    const { eventId, blockId, status, dateFrom, dateTo, student } = req.query;
 
     const matchBase = {};
     if (eventId) {
@@ -27,6 +27,12 @@ const attendanceReport = async (req, res, next) => {
       }
     }
     if (status) matchBase.status = status;
+    if (student) {
+      const { Types } = require('mongoose');
+      if (Types.ObjectId.isValid(student)) {
+        matchBase.student = new Types.ObjectId(student);
+      }
+    }
 
     const pipeline = [
       { $match: matchBase },
@@ -80,15 +86,25 @@ const attendanceReport = async (req, res, next) => {
     pipeline.push({
       $project: {
         _id: 1,
-        studentId: '$studentData.studentId',
-        studentName: '$studentData.name',
-        block: '$blockData.code',
-        event: '$eventData.title',
-        eventDate: '$eventData.date',
         status: 1,
         checkInTime: 1,
         checkInMethod: 1,
         isFinalized: 1,
+        student: {
+          _id: '$studentData._id',
+          name: '$studentData.name',
+          studentId: '$studentData.studentId',
+          block: {
+            _id: '$blockData._id',
+            name: '$blockData.name',
+            code: '$blockData.code',
+          },
+        },
+        event: {
+          _id: '$eventData._id',
+          title: '$eventData.title',
+          date: '$eventData.date',
+        },
       },
     });
 
@@ -102,7 +118,7 @@ const attendanceReport = async (req, res, next) => {
       excused: records.filter((r) => r.status === 'excused').length,
     };
 
-    return res.status(200).json({ records, summary });
+    return res.status(200).json({ data: records, summary });
   } catch (err) {
     next(err);
   }
@@ -174,13 +190,24 @@ const participationReport = async (req, res, next) => {
 
     pipeline.push({
       $project: {
-        studentId: '$studentData.studentId',
-        studentName: '$studentData.name',
-        block: '$blockData.code',
-        event: '$eventData.title',
-        eventDate: '$eventData.date',
+        _id: 1,
         rsvpStatus: 1,
         rsvpAt: 1,
+        student: {
+          _id: '$studentData._id',
+          name: '$studentData.name',
+          studentId: '$studentData.studentId',
+          block: {
+            _id: '$blockData._id',
+            name: '$blockData.name',
+            code: '$blockData.code',
+          },
+        },
+        event: {
+          _id: '$eventData._id',
+          title: '$eventData.title',
+          date: '$eventData.date',
+        },
       },
     });
 
@@ -193,7 +220,7 @@ const participationReport = async (req, res, next) => {
       pending: records.filter((r) => r.rsvpStatus === 'pending').length,
     };
 
-    return res.status(200).json({ records, summary });
+    return res.status(200).json({ data: records, summary });
   } catch (err) {
     next(err);
   }
