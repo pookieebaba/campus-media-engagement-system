@@ -7,7 +7,7 @@ const isDev = process.env.NODE_ENV !== 'production';
  */
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isDev ? 2000 : 100,
+  max: isDev ? 2000 : 500,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -20,7 +20,7 @@ const generalLimiter = rateLimit({
  */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: isDev ? 100 : 5,
+  max: isDev ? 100 : 50,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
